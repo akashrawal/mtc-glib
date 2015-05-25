@@ -1,5 +1,5 @@
-/* common.h
- * Common includes
+/* gevent.h
+ * Event-driven framework implementation based on GMainLoop
  * 
  * Copyright 2013 Akash Rawal
  * This file is part of MTC-GLib.
@@ -18,19 +18,7 @@
  * along with MTC-GLib.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-//Common header files
-#include <mtc0/mtc.h>
-#include <glib.h>
-#include <sys/socket.h>
+//TODO: Documentation
 
-#ifndef _MTC_PUBLIC
-#include <string.h>
-#include <error.h>
-#include <assert.h>
-#endif
+MtcEventMgr *mtc_g_event_mgr_new(GMainContext *context);
 
-#define _MTC_HEADER
-//Target related header files
-#include "gevent.h"
-
-#undef _MTC_HEADER
