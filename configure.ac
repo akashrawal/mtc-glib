@@ -1,6 +1,7 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
+#TODO: Check this file
 AC_PREREQ([2.69])
 AC_INIT([mtc-glib],[0.0.0],[http://code.google.com/p/mtc-glib])
 AC_CONFIG_SRCDIR([mtc0-glib/common.h])

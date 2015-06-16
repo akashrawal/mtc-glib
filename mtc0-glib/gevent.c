@@ -1,5 +1,5 @@
 /* gevent.c
- * Event-driven framework implementation based on GMainLoop
+ * Event-driven framework g_backendementation based on GMainLoop
  * 
  * Copyright 2013 Akash Rawal
  * This file is part of MTC-GLib.
@@ -10,7 +10,7 @@
  * (at your option) any later version.
  * 
  * MTC-GLib is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * but WITHOUT ANY WARRANTY; without even the g_backendied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  * 
@@ -54,8 +54,8 @@ static int mtc_poll_from_glib(int events)
 	return res;
 }
 
-//Event implementation
-typedef struct _MtcGEventImpl MtcGEventImpl;
+//Event g_backend
+typedef struct _MtcGEventBackend MtcGEventBackend;
 
 typedef struct 
 {
@@ -67,14 +67,14 @@ typedef struct
 {
 	GSource parent;
 	
-	MtcGEventImpl *impl;
+	MtcGEventBackend *g_backend;
 	int n_fd_tests;
 	MtcGPollFD fd_tests[];
 } MtcGSource;
 
-struct _MtcGEventImpl
+struct _MtcGEventBackend
 {
-	MtcEventSource *source;
+	MtcEventBackend parent;
 	MtcGSource *g_source;
 	GMainContext *context;
 	MtcEventTest *tests;
@@ -89,69 +89,70 @@ typedef struct
 	GMainContext *context;
 } MtcGEventMgr;
 
+//GSource management
 extern GSourceFuncs mtc_g_source_funcs;
 
-static void mtc_g_event_create_g_source
-	(MtcGEventImpl *impl, int n_fd_tests)
+static void mtc_g_event_backend_create_g_source
+	(MtcGEventBackend *g_backend, int n_fd_tests)
 {
 	int i;
 	GSource *glib_source;
 	
 	glib_source = g_source_new(&mtc_g_source_funcs, sizeof(MtcGSource) 
 			+ (n_fd_tests * sizeof(MtcGPollFD)));
-	impl->g_source = (MtcGSource *) glib_source;
+	g_backend->g_source = (MtcGSource *) glib_source;
 	
-	impl->g_source->impl = impl;
-	impl->g_source->n_fd_tests = n_fd_tests;
+	g_backend->g_source->g_backend = g_backend;
+	g_backend->g_source->n_fd_tests = n_fd_tests;
 	
 	for (i = 0; i < n_fd_tests; i++)
 	{
 		g_source_add_poll
-			(glib_source, &(impl->g_source->fd_tests[i].fd));
+			(glib_source, &(g_backend->g_source->fd_tests[i].fd));
 	}
 	
-	g_source_attach(glib_source, impl->context);
+	g_source_attach(glib_source, g_backend->context);
 }
 
-static void mtc_g_event_update(MtcGEventImpl *impl)
+static void mtc_g_event_backend_update(MtcGEventBackend *g_backend)
 {
 	int n_fd_tests = 0;
 	int fd_test_id;
 	MtcEventTest *test_iter;
 	
 	//Metrics
-	for (test_iter = impl->tests; test_iter; test_iter = test_iter->next)
+	for (test_iter = g_backend->tests; test_iter; test_iter = test_iter->next)
 	{
 		if (strcmp(test_iter->name, MTC_EVENT_TEST_POLLFD) != 0)
 		{
-			mtc_error("Unsupported test %s for event source %p",
-				test_iter->name, impl->source);
+			mtc_error("Unsupported test %s for event g_backend %p",
+				test_iter->name, g_backend);
 		}
 		n_fd_tests++;
 	}
 	
-	//Create/recreate impl->g_source as needed
-	if (! impl->g_source)
+	//Create/recreate g_backend->g_source as needed
+	if (! g_backend->g_source)
 	{
-		mtc_g_event_create_g_source(impl, n_fd_tests);
+		mtc_g_event_backend_create_g_source(g_backend, n_fd_tests);
 	}
 	else
 	{
-		if (n_fd_tests != impl->g_source->n_fd_tests)
+		if (n_fd_tests != g_backend->g_source->n_fd_tests)
 		{
-			g_source_destroy((GSource *) impl->g_source);
-			g_source_unref((GSource *) impl->g_source);
-			mtc_g_event_create_g_source(impl, n_fd_tests);
+			g_source_destroy((GSource *) g_backend->g_source);
+			g_source_unref((GSource *) g_backend->g_source);
+			mtc_g_event_backend_create_g_source(g_backend, n_fd_tests);
 		}
 	}
 	
 	//Fill data
 	fd_test_id = 0;
-	for (test_iter = impl->tests; test_iter; test_iter = test_iter->next)
+	for (test_iter = g_backend->tests; test_iter; test_iter = test_iter->next)
 	{
 		if (strcmp(test_iter->name, MTC_EVENT_TEST_POLLFD) == 0)
 		{
-			#define cur_test (impl->g_source->fd_tests[fd_test_id])
+			#define cur_test (g_backend->g_source->fd_tests[fd_test_id])
 			MtcEventTestPollFD *fd_test 
 				= (MtcEventTestPollFD *) test_iter;
 			
@@ -166,23 +167,25 @@ static void mtc_g_event_update(MtcGEventImpl *impl)
 	}
 	
 	//Done
-	impl->update_pending = 0;
+	g_backend->update_pending = 0;
 }
 
+//GSource workings
 static gboolean mtc_g_source_prepare(GSource *glib_source, gint *timeout)
 {
 	MtcGSource *g_source = (MtcGSource *) glib_source;
-	MtcGEventImpl *impl = g_source->impl;
+	MtcGEventBackend *g_backend = g_source->g_backend;
 	
-	if (! impl->is_polling)
+	if (! g_backend->is_polling)
 	{
-		impl->is_polling = 1;
+		g_backend->is_polling = 1;
 		
 		//Send 'poll-begin' message
-		mtc_event_source_event(impl->source, MTC_EVENT_POLL_BEGIN);
+		mtc_event_backend_event
+			((MtcEventBackend *) g_backend, MTC_EVENT_POLL_BEGIN);
 		
-		if (impl->update_pending)
-			mtc_g_event_update(impl);
+		if (g_backend->update_pending)
+			mtc_g_event_backend_update(g_backend);
 	}
 	
 	*timeout = -1;
@@ -192,10 +195,10 @@ static gboolean mtc_g_source_prepare(GSource *glib_source, gint *timeout)
 static gboolean mtc_g_source_check(GSource *glib_source)
 {
 	MtcGSource *g_source = (MtcGSource *) glib_source;
-	MtcGEventImpl *impl = g_source->impl;
+	MtcGEventBackend *g_backend = g_source->g_backend;
 	int i, msg = MTC_EVENT_POLL_END;
 	
-	impl->is_polling = 0;
+	g_backend->is_polling = 0;
 	
 	//Translate all revents
 	//Also check if we need to send 'check' message.
@@ -207,7 +210,7 @@ static gboolean mtc_g_source_check(GSource *glib_source)
 	}
 	
 	//Send 'poll-end' message (and maybe 'check' signal)
-	mtc_event_source_event(impl->source, msg);
+	mtc_event_backend_event((MtcEventBackend *) g_backend, msg);
 	
 	//The job is done. No use of dispatching.
 	return FALSE;
@@ -224,7 +227,7 @@ static gboolean mtc_g_source_dispatch
 static void mtc_g_source_finalize(GSource *glib_source)
 {
 	MtcGSource *g_source = (MtcGSource *) glib_source;
-	MtcGEventImpl *impl = g_source->impl;
+	MtcGEventBackend *g_backend = g_source->g_backend;
 	
 }
 */
@@ -239,48 +242,46 @@ GSourceFuncs mtc_g_source_funcs =
 	NULL
 };
 
-static void mtc_g_event_prepare
-	(MtcEventSource *source, MtcEventTest *tests)
+//VTable functions
+
+void mtc_g_event_backend_init
+	(MtcEventBackend *backend, MtcEventMgr *mgr)
 {
-	MtcGEventImpl *impl = (MtcGEventImpl *) 
-		mtc_event_source_get_impl(source);
-
-	impl->tests = tests;
-
-	if (impl->is_polling)
-		//REFER: Main loop should have stopped here
-		mtc_g_event_update(impl);
-	else
-		impl->update_pending = 1;
-}
-
-void mtc_g_event_init_source
-	(MtcEventSource *source, MtcEventMgr *mgr)
-{
+	MtcGEventBackend *g_backend = (MtcGEventBackend *) backend;
 	MtcGEventMgr *gmgr = (MtcGEventMgr *) mgr;
-	MtcGEventImpl *impl = mtc_event_source_get_impl(source);
 	
-	impl->source = source;
-	impl->context = gmgr->context;
-	g_main_context_ref(impl->context);
-	impl->g_source = NULL;
-	impl->tests = NULL;
-	impl->is_polling = 0;
-	impl->update_pending = 1;
-	mtc_g_event_update(impl);
+	g_backend->context = gmgr->context;
+	g_main_context_ref(g_backend->context);
+	g_backend->g_source = NULL;
+	g_backend->tests = NULL;
+	g_backend->is_polling = 0;
+	g_backend->update_pending = 1;
+	mtc_g_event_backend_update(g_backend);
 }
 
-void mtc_g_event_destroy_source(MtcEventSource *source)
-{
-	MtcGEventImpl *impl = mtc_event_source_get_impl(source);
+void mtc_g_event_backend_destroy(MtcEventBackend *backend)
+{	
+	MtcGEventBackend *g_backend = (MtcGEventBackend *) backend;
+	g_main_context_unref(g_backend->context);
 	
-	g_main_context_unref(impl->context);
-	
-	if (impl->g_source)
+	if (g_backend->g_source)
 	{
-		g_source_destroy((GSource *) impl->g_source);
-		g_source_unref((GSource *) impl->g_source);
+		g_source_destroy((GSource *) g_backend->g_source);
+		g_source_unref((GSource *) g_backend->g_source);
 	}
+}
+
+static void mtc_g_event_backend_prepare
+	(MtcEventBackend *backend, MtcEventTest *tests)
+{
+	MtcGEventBackend *g_backend = (MtcGEventBackend *) backend;
+	g_backend->tests = tests;
+	
+	if (g_backend->is_polling)
+		//REFER: Main loop should have stopped here
+		mtc_g_event_backend_update(g_backend);
+	else
+		g_backend->update_pending = 1;
 }
 
 void mtc_g_event_mgr_destroy(MtcEventMgr *mgr)
@@ -294,12 +295,12 @@ void mtc_g_event_mgr_destroy(MtcEventMgr *mgr)
 	mtc_free(gmgr);
 }
 
-static MtcEventImpl mtc_g_event_impl = 
+static MtcEventBackendVTable mtc_g_event_backend_vtable = 
 {
-	sizeof(MtcGEventImpl),
-	mtc_g_event_prepare,
-	mtc_g_event_init_source,
-	mtc_g_event_destroy_source,
+	sizeof(MtcGEventBackend),
+	mtc_g_event_backend_init,
+	mtc_g_event_backend_destroy,
+	mtc_g_event_backend_prepare,
 	mtc_g_event_mgr_destroy
 };
 
@@ -307,7 +308,7 @@ MtcEventMgr *mtc_g_event_mgr_new(GMainContext *context)
 {
 	MtcGEventMgr *gmgr = (MtcGEventMgr *) mtc_alloc(sizeof(MtcGEventMgr));
 	
-	mtc_event_mgr_init((MtcEventMgr *) gmgr, &mtc_g_event_impl);
+	mtc_event_mgr_init((MtcEventMgr *) gmgr, &mtc_g_event_backend_vtable);
 	
 	if (context)
 	{
