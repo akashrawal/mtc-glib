@@ -24,13 +24,10 @@
 
 //Translator between GPollFD and MtcEventTestPollFD events
 const static struct {int mtc_flag, g_flag;} translator[] = {
-				{MTC_POLLIN,   G_IO_IN},
-				{MTC_POLLOUT,  G_IO_OUT},
-				{MTC_POLLPRI,  G_IO_PRI},
-				{MTC_POLLERR,  G_IO_ERR},
-				{MTC_POLLHUP,  G_IO_HUP},
-				{MTC_POLLNVAL, G_IO_NVAL}};
-const static int n_flags = 6;
+	{MTC_POLLIN, G_IO_IN | G_IO_ERR | G_IO_HUP | G_IO_NVAL},
+	{MTC_POLLOUT, G_IO_OUT}
+};
+const static int n_flags = 2;
 
 static int mtc_poll_to_glib(int events)
 {
