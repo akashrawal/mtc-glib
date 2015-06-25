@@ -18,7 +18,10 @@
  * along with MTC-GLib.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-//TODO: Documentation
 
+/**Creates a new event backend manager based on GMainLoop.
+ * \param context A GMainContext for backends to attach to, or 
+ *         NULL to use default backend
+ */
 MtcEventMgr *mtc_g_event_mgr_new(GMainContext *context);
 
