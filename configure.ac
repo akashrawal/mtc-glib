@@ -1,10 +1,8 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
-#TODO: Check this file
 AC_PREREQ([2.69])
 AC_INIT([MTC GLib],[0.0.0],[],[mtc-glib],[https://github.com/akashrawal/mtc-glib])
-
 AC_CONFIG_SRCDIR([mtc0-glib/common.h])
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([-Wall -Werror silent-rules])
